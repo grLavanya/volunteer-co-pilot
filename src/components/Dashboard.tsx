@@ -89,7 +89,7 @@ export default function Dashboard({ volunteer, onSignOut }: DashboardProps) {
 
           {/* Right column: AI recommendation + route planner */}
           <aside className="space-y-5">
-            <RecommendationCard />
+            <RecommendationCard zones={zones} />
             {!loading && zones.length > 0 && <RoutePlanner zones={zones} />}
           </aside>
         </div>
@@ -98,13 +98,13 @@ export default function Dashboard({ volunteer, onSignOut }: DashboardProps) {
       {/* Floating action button — Assist a Fan */}
       <button
         onClick={() => setFanAssistOpen(true)}
-        className="fixed bottom-20 right-5 z-40 flex items-center gap-2 rounded-full bg-cyan-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-900/50 transition-all hover:bg-cyan-500 hover:shadow-xl active:scale-95"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-cyan-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-900/50 transition-all hover:bg-cyan-500 hover:shadow-xl active:scale-95"
       >
         <Mic className="h-5 w-5" />
         <span className="hidden sm:inline">Assist a Fan</span>
       </button>
 
-      <FanAssistModal open={fanAssistOpen} onClose={() => setFanAssistOpen(false)} />
+      <FanAssistModal open={fanAssistOpen} onClose={() => setFanAssistOpen(false)} volunteerId={volunteer.id} />
     </div>
   );
 }
