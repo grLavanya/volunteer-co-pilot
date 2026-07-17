@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     const threshold = typeof threshold_pct === 'number' ? threshold_pct : 80;
 
     // Rule 1: Only recommend action if at least one zone's occupancy_pct meets or exceeds the given threshold_pct.
-    const hasZoneOverThreshold = zones.some((z) => z.occupancy_pct >= threshold);
+    const overThresholdZones = zones.filter((z) => z.occupancy_pct >= threshold);
+    const hasZoneOverThreshold = overThresholdZones.length > 0;
     if (!hasZoneOverThreshold) {
       // Rule 6: If no zone crosses the threshold, return only { "has_recommendation": false }
       return new Response(JSON.stringify({ has_recommendation: false }), {
@@ -67,6 +68,15 @@ Deno.serve(async (req) => {
     }
 
     // Call Gemini API (gemini-2.5-flash)
+    // When several zones are over threshold at once, Gemini has to reason about more
+    // zones + redirect logic + 3-language scripts, which takes longer to generate.
+    // We handle this two ways: (a) ask for tighter reasoning when there are multiple
+    // over-threshold zones, and (b) scale the timeout with how many zones are involved.
+    const multiZoneNote =
+      overThresholdZones.length > 1
+        ? `\n\nNote: ${overThresholdZones.length} zones are currently over threshold at once. Keep the "reasoning" field concise (2-3 sentences) and focus your recommendation on the single most urgent zone rather than addressing all of them — this keeps your response fast and actionable for a volunteer under pressure.`
+        : '';
+
     const systemPrompt = `You are a crowd-management reasoning assistant for stadium volunteers during the FIFA World Cup 2026. You are given live occupancy data for stadium zones and their adjacency (which zones connect to which). Your job is NOT to just detect high occupancy — that's already computed for you as occupancy_pct. Your job is to REASON about what a volunteer should do about it, and explain WHY in plain English.
 
 Rules:
@@ -76,7 +86,7 @@ Rules:
 4. Prefer zones with a "falling" trend as redirect targets over "stable" ones, and avoid recommending a zone that is itself near threshold.
 5. Generate suggested_scripts in English, Spanish, and French. Keep the tone calm, brief, and directive — this will be read aloud or shown to a volunteer speaking to a stressed fan.
 6. If no zone crosses the threshold, return only { "has_recommendation": false } — never invent a recommendation to seem useful.
-7. Return ONLY valid JSON matching the schema below. No preamble, no markdown formatting, no explanation outside the JSON.
+7. Return ONLY valid JSON matching the schema below. No preamble, no markdown formatting, no explanation outside the JSON.${multiZoneNote}
 
 Output schema:
 {
@@ -90,8 +100,13 @@ Output schema:
 
     const userPrompt = JSON.stringify({ zones, connected_zone_ids, threshold_pct: threshold }, null, 2);
 
+    // Scale timeout with number of over-threshold zones: base 10s + 3s per zone,
+    // capped at 28s so a pathological case still fails fast enough to fall back
+    // and return something to the volunteer rather than hanging indefinitely.
+    const timeoutMs = Math.min(28000, 10000 + overThresholdZones.length * 3000);
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;

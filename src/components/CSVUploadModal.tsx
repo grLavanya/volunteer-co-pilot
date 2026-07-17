@@ -1,30 +1,14 @@
 import { useState } from 'react';
 import { X, UploadCloud, Download, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import type { ZoneWithSnapshot, Trend } from '../types/database';
+import type { ZoneWithSnapshot } from '../types/database';
+import { parseAndValidateCSV, type RowResult } from '../lib/csvParser';
 
 interface CSVUploadModalProps {
     open: boolean;
     onClose: () => void;
     zones: ZoneWithSnapshot[];
     onUploaded: () => void;
-}
-
-interface RowResult {
-    line: number;
-    status: 'ok' | 'error';
-    message: string;
-}
-
-const VALID_TRENDS: Trend[] = ['rising', 'falling', 'stable'];
-
-/**
- * Minimal CSV line splitter. Handles simple quoted fields but is intentionally
- * lightweight — this app's CSV format has no commas inside field values
- * (zone names, numbers, trend keywords), so a full RFC4180 parser is not needed.
- */
-function parseCSVLine(line: string): string[] {
-    return line.split(',').map((cell) => cell.trim().replace(/^"|"$/g, ''));
 }
 
 export default function CSVUploadModal({ open, onClose, zones, onUploaded }: CSVUploadModalProps) {
@@ -69,126 +53,12 @@ export default function CSVUploadModal({ open, onClose, zones, onUploaded }: CSV
 
         try {
             const text = await file.text();
-            const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+            const { globalError: parseError, rowResults, toInsert } = parseAndValidateCSV(text, zones);
 
-            if (lines.length < 2) {
-                setGlobalError('The file has no data rows — only a header (or is empty).');
+            if (parseError) {
+                setGlobalError(parseError);
                 setUploading(false);
                 return;
-            }
-
-            const header = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
-            const nameIdx = header.indexOf('zone_name');
-            const densityIdx = header.indexOf('density_pct');
-            const occupancyIdx = header.indexOf('current_occupancy');
-            const trendIdx = header.indexOf('trend');
-
-            if (nameIdx === -1) {
-                setGlobalError('Missing required column: "zone_name".');
-                setUploading(false);
-                return;
-            }
-            if (densityIdx === -1 && occupancyIdx === -1) {
-                setGlobalError('File must include either a "density_pct" or "current_occupancy" column.');
-                setUploading(false);
-                return;
-            }
-
-            const rowResults: RowResult[] = [];
-            const toInsert: { zone_id: string; density_pct: number; trend: Trend }[] = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const lineNum = i + 1; // 1-indexed, accounting for header
-                const cells = parseCSVLine(lines[i]);
-                const rawName = cells[nameIdx]?.trim();
-
-                if (!rawName) {
-                    rowResults.push({ line: lineNum, status: 'error', message: 'Missing zone_name.' });
-                    continue;
-                }
-
-                const zone = zones.find((z) => z.name.toLowerCase() === rawName.toLowerCase());
-                if (!zone) {
-                    rowResults.push({
-                        line: lineNum,
-                        status: 'error',
-                        message: `Unknown zone "${rawName}" — no matching zone in the system.`,
-                    });
-                    continue;
-                }
-
-                let densityPct: number | null = null;
-
-                if (densityIdx !== -1 && cells[densityIdx]) {
-                    const parsed = parseFloat(cells[densityIdx]);
-                    if (isNaN(parsed)) {
-                        rowResults.push({
-                            line: lineNum,
-                            status: 'error',
-                            message: `Invalid density_pct value "${cells[densityIdx]}" for ${zone.name}.`,
-                        });
-                        continue;
-                    }
-                    densityPct = parsed;
-                } else if (occupancyIdx !== -1 && cells[occupancyIdx]) {
-                    const parsedCount = parseFloat(cells[occupancyIdx]);
-                    if (isNaN(parsedCount)) {
-                        rowResults.push({
-                            line: lineNum,
-                            status: 'error',
-                            message: `Invalid current_occupancy value "${cells[occupancyIdx]}" for ${zone.name}.`,
-                        });
-                        continue;
-                    }
-                    if (!zone.capacity || zone.capacity <= 0) {
-                        rowResults.push({
-                            line: lineNum,
-                            status: 'error',
-                            message: `Cannot compute percentage for ${zone.name} — zone has no valid capacity on record.`,
-                        });
-                        continue;
-                    }
-                    densityPct = (parsedCount / zone.capacity) * 100;
-                } else {
-                    rowResults.push({
-                        line: lineNum,
-                        status: 'error',
-                        message: `No density_pct or current_occupancy value provided for ${zone.name}.`,
-                    });
-                    continue;
-                }
-
-                // Clamp to a sane 0-100 range rather than silently accepting bad data
-                if (densityPct < 0 || densityPct > 100) {
-                    rowResults.push({
-                        line: lineNum,
-                        status: 'error',
-                        message: `${zone.name}: occupancy ${densityPct.toFixed(1)}% is out of valid range (0-100).`,
-                    });
-                    continue;
-                }
-
-                let trend: Trend = 'stable';
-                if (trendIdx !== -1 && cells[trendIdx]) {
-                    const rawTrend = cells[trendIdx].toLowerCase() as Trend;
-                    if (VALID_TRENDS.includes(rawTrend)) {
-                        trend = rawTrend;
-                    } else {
-                        rowResults.push({
-                            line: lineNum,
-                            status: 'error',
-                            message: `Invalid trend "${cells[trendIdx]}" for ${zone.name} — must be rising, falling, or stable. Defaulted to "stable".`,
-                        });
-                        trend = 'stable';
-                    }
-                }
-
-                toInsert.push({ zone_id: zone.id, density_pct: densityPct, trend });
-                rowResults.push({
-                    line: lineNum,
-                    status: 'ok',
-                    message: `${zone.name} updated to ${densityPct.toFixed(1)}% (${trend}).`,
-                });
             }
 
             if (toInsert.length > 0) {
