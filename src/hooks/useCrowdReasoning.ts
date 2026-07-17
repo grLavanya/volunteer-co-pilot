@@ -26,9 +26,16 @@ export function useCrowdReasoning(zones: ZoneWithSnapshot[]): UseCrowdReasoningR
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use a ref to store serialized payload and avoid redundant network requests 
-  // if the zones array reference changes but its data contents remain identical.
+  // Avoid redundant network requests if the zones array reference changes
+  // but its data contents remain identical.
   const lastPayloadRef = useRef<string>('');
+
+  // Tracks which fetch is the most recent one. A response only applies its
+  // state updates if it's still the latest request — this correctly ignores
+  // genuinely superseded requests without relying on effect-cleanup timing,
+  // which under React Strict Mode's dev-only double-invoke can fire before
+  // an in-flight request resolves and incorrectly suppress its own result.
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (!zones || zones.length === 0) {
@@ -36,7 +43,6 @@ export function useCrowdReasoning(zones: ZoneWithSnapshot[]): UseCrowdReasoningR
       return;
     }
 
-    // Format zones as expected by the POST request schema
     const formattedZones = zones.map((z) => ({
       id: z.id,
       name: z.name,
@@ -45,7 +51,6 @@ export function useCrowdReasoning(zones: ZoneWithSnapshot[]): UseCrowdReasoningR
       trend: z.trend ?? 'stable',
     }));
 
-    // Create adjacent zone connections mapping
     const connectedZoneIdsMap: Record<string, string[]> = {};
     for (const z of zones) {
       connectedZoneIdsMap[z.id] = z.connected_zone_ids ?? [];
@@ -63,7 +68,7 @@ export function useCrowdReasoning(zones: ZoneWithSnapshot[]): UseCrowdReasoningR
     }
     lastPayloadRef.current = serializedPayload;
 
-    let active = true;
+    const thisRequestId = ++requestIdRef.current;
 
     async function fetchRecommendation() {
       setLoading(true);
@@ -78,30 +83,24 @@ export function useCrowdReasoning(zones: ZoneWithSnapshot[]): UseCrowdReasoningR
           throw invokeErr;
         }
 
-        if (active) {
+        // Only apply this result if no newer request has since started.
+        if (requestIdRef.current === thisRequestId) {
           setRecommendation(data);
-          if (data && data.gemini_error) {
-            console.error('DEBUG_GEMINI_ERROR:', data.gemini_error);
-          }
         }
       } catch (err) {
         console.error('Error calling crowd-reasoning edge function:', err);
         const errMsg = err instanceof Error ? err.message : 'Failed to call crowd reasoning service';
-        if (active) {
+        if (requestIdRef.current === thisRequestId) {
           setError(errMsg);
         }
       } finally {
-        if (active) {
+        if (requestIdRef.current === thisRequestId) {
           setLoading(false);
         }
       }
     }
 
     fetchRecommendation();
-
-    return () => {
-      active = false;
-    };
   }, [zones]);
 
   return { recommendation, loading, error };

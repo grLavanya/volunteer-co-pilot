@@ -154,21 +154,16 @@ Output schema:
       clearTimeout(timeoutId);
       console.error('Gemini call failed or timed out. Running rule-based fallback.', geminiErr);
       const fallback = runFallback(zones, connected_zone_ids, threshold);
-      return new Response(JSON.stringify({
-        ...fallback,
-        gemini_error: geminiErr instanceof Error ? geminiErr.message : String(geminiErr)
-      }), {
+      return new Response(JSON.stringify(fallback), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
   } catch (err) {
     console.error('Unhandled internal error in edge function:', err);
-    // Even in unhandled internal errors, we want to return a clean error object without crashing
     return new Response(
       JSON.stringify({
         has_recommendation: false,
-        error: err instanceof Error ? err.message : String(err),
       }),
       {
         status: 500,

@@ -158,7 +158,6 @@ Deno.serve(async (req) => {
                 urgency: 'low',
                 translated_message: '',
                 suggested_response: "I'm sorry, I'm having trouble understanding. Let me get another volunteer to help.",
-                error: err instanceof Error ? err.message : String(err),
             }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

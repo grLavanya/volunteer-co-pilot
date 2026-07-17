@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { ZoneWithSnapshot, Zone } from '../types/database';
 
@@ -20,6 +20,7 @@ interface UseZonesResult {
   zones: ZoneWithSnapshot[];
   loading: boolean;
   error: string | null;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -32,63 +33,58 @@ export function useZones(): UseZonesResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-    async function load() {
-      setLoading(true);
-      setError(null);
+    try {
+      const { data: zoneRows, error: zoneErr } = await supabase
+        .from('zones')
+        .select('*')
+        .order('name');
 
-      try {
-        const { data: zoneRows, error: zoneErr } = await supabase
-          .from('zones')
-          .select('*')
-          .order('name');
-
-        if (zoneErr) throw zoneErr;
-        if (!zoneRows) {
-          if (!cancelled) setZones([]);
-          return;
-        }
-
-        const { data: snapshots, error: snapErr } = await supabase
-          .from('crowd_snapshots')
-          .select('zone_id, density_pct, trend, recorded_at')
-          .order('recorded_at', { ascending: false });
-
-        if (snapErr) throw snapErr;
-
-        // Keep only the latest snapshot per zone
-        const latestByZone = new Map<string, { density_pct: number; trend: string }>();
-        for (const s of snapshots ?? []) {
-          if (!latestByZone.has(s.zone_id)) {
-            latestByZone.set(s.zone_id, { density_pct: s.density_pct, trend: s.trend });
-          }
-        }
-
-        const merged: ZoneWithSnapshot[] = zoneRows.map((z) => {
-          const snap = latestByZone.get(z.id);
-          return {
-            ...normalizeZone(z as unknown as Record<string, unknown>),
-            density_pct: snap?.density_pct ?? null,
-            trend: (snap?.trend as ZoneWithSnapshot['trend']) ?? null,
-          };
-        });
-
-        if (!cancelled) setZones(merged);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to load zone data';
-        if (!cancelled) setError(msg);
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (zoneErr) throw zoneErr;
+      if (!zoneRows) {
+        setZones([]);
+        return;
       }
-    }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
+      const { data: snapshots, error: snapErr } = await supabase
+        .from('crowd_snapshots')
+        .select('zone_id, density_pct, trend, recorded_at')
+        .order('recorded_at', { ascending: false });
+
+      if (snapErr) throw snapErr;
+
+      // Keep only the latest snapshot per zone
+      const latestByZone = new Map<string, { density_pct: number; trend: string }>();
+      for (const s of snapshots ?? []) {
+        if (!latestByZone.has(s.zone_id)) {
+          latestByZone.set(s.zone_id, { density_pct: s.density_pct, trend: s.trend });
+        }
+      }
+
+      const merged: ZoneWithSnapshot[] = zoneRows.map((z) => {
+        const snap = latestByZone.get(z.id);
+        return {
+          ...normalizeZone(z as unknown as Record<string, unknown>),
+          density_pct: snap?.density_pct ?? null,
+          trend: (snap?.trend as ZoneWithSnapshot['trend']) ?? null,
+        };
+      });
+
+      setZones(merged);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load zone data';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { zones, loading, error };
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { zones, loading, error, refetch: load };
 }

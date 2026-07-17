@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { LogOut, Mic, Loader2, AlertTriangle } from 'lucide-react';
+import { LogOut, Mic, Loader2, AlertTriangle, UploadCloud } from 'lucide-react';
 import type { Volunteer } from '../types/database';
 import { useZones } from '../hooks/useZones';
 import ZoneCard from './ZoneCard';
 import RecommendationCard from './RecommendationCard';
 import FanAssistModal from './FanAssistModal';
 import RoutePlanner from './RoutePlanner';
+import CSVUploadModal from './CSVUploadModal';
 
 interface DashboardProps {
   volunteer: Volunteer;
@@ -13,8 +14,9 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ volunteer, onSignOut }: DashboardProps) {
-  const { zones, loading, error } = useZones();
+  const { zones, loading, error, refetch } = useZones();
   const [fanAssistOpen, setFanAssistOpen] = useState(false);
+  const [csvUploadOpen, setCsvUploadOpen] = useState(false);
 
   const assignedZone = zones.find((z) => z.id === volunteer.assigned_zone_id);
 
@@ -40,13 +42,23 @@ export default function Dashboard({ volunteer, onSignOut }: DashboardProps) {
               </p>
             </div>
           </div>
-          <button
-            onClick={onSignOut}
-            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCsvUploadOpen(true)}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              title="Upload crowd data for testing"
+            >
+              <UploadCloud className="h-4 w-4" />
+              <span className="hidden sm:inline">Upload Data</span>
+            </button>
+            <button
+              onClick={onSignOut}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -104,7 +116,18 @@ export default function Dashboard({ volunteer, onSignOut }: DashboardProps) {
         <span className="hidden sm:inline">Assist a Fan</span>
       </button>
 
-      <FanAssistModal open={fanAssistOpen} onClose={() => setFanAssistOpen(false)} volunteerId={volunteer.id} />
+      <FanAssistModal
+        open={fanAssistOpen}
+        onClose={() => setFanAssistOpen(false)}
+        volunteerId={volunteer.id}
+      />
+
+      <CSVUploadModal
+        open={csvUploadOpen}
+        onClose={() => setCsvUploadOpen(false)}
+        zones={zones}
+        onUploaded={refetch}
+      />
     </div>
   );
 }
