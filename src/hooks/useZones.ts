@@ -25,8 +25,15 @@ interface UseZonesResult {
 
 /**
  * Fetches all zones joined with their latest crowd_snapshot.
- * Uses a two-query approach (zones, then latest snapshot per zone) because
- * Supabase doesn't support DISTINCT ON via the PostgREST query builder.
+ *
+ * The latest-snapshot-per-zone lookup is done via the get_latest_crowd_snapshots
+ * RPC (a DISTINCT ON query defined in the database — see
+ * supabase/migrations/20260718183000_add_latest_crowd_snapshots_rpc.sql),
+ * rather than fetching the entire crowd_snapshots history and filtering to
+ * "latest per zone" client-side. PostgREST's query builder doesn't support
+ * DISTINCT ON directly, so this logic lives in a small SQL function instead —
+ * the client now receives exactly one row per zone regardless of how much
+ * snapshot history has accumulated.
  */
 export function useZones(): UseZonesResult {
   const [zones, setZones] = useState<ZoneWithSnapshot[]>([]);
@@ -49,19 +56,15 @@ export function useZones(): UseZonesResult {
         return;
       }
 
-      const { data: snapshots, error: snapErr } = await supabase
-        .from('crowd_snapshots')
-        .select('zone_id, density_pct, trend, recorded_at')
-        .order('recorded_at', { ascending: false });
+      const { data: snapshots, error: snapErr } = await supabase.rpc(
+        'get_latest_crowd_snapshots'
+      );
 
       if (snapErr) throw snapErr;
 
-      // Keep only the latest snapshot per zone
       const latestByZone = new Map<string, { density_pct: number; trend: string }>();
       for (const s of snapshots ?? []) {
-        if (!latestByZone.has(s.zone_id)) {
-          latestByZone.set(s.zone_id, { density_pct: s.density_pct, trend: s.trend });
-        }
+        latestByZone.set(s.zone_id, { density_pct: s.density_pct, trend: s.trend });
       }
 
       const merged: ZoneWithSnapshot[] = zoneRows.map((z) => {
