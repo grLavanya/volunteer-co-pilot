@@ -88,6 +88,9 @@ export default function CSVUploadModal({ open, onClose, zones, onUploaded }: CSV
             onClick={handleClose}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="csv-upload-title"
                 className="w-full max-w-lg rounded-t-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -97,7 +100,9 @@ export default function CSVUploadModal({ open, onClose, zones, onUploaded }: CSV
                             <UploadCloud className="h-5 w-5 text-cyan-400" />
                         </div>
                         <div>
-                            <h2 className="text-base font-semibold text-slate-100">Upload Crowd Data</h2>
+                            <h2 id="csv-upload-title" className="text-base font-semibold text-slate-100">
+                                Upload Crowd Data
+                            </h2>
                             <p className="text-xs text-slate-400">For judges to test with real datasets</p>
                         </div>
                     </div>
@@ -143,17 +148,25 @@ export default function CSVUploadModal({ open, onClose, zones, onUploaded }: CSV
                     />
                 </label>
 
-                {uploading && <p className="mt-3 text-sm text-slate-400">Processing…</p>}
+                {uploading && (
+                    <p role="status" aria-live="polite" className="mt-3 text-sm text-slate-400">
+                        Processing…
+                    </p>
+                )}
 
                 {globalError && (
-                    <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-800 bg-red-950/50 p-3 text-sm text-red-300">
+                    <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-4 flex items-start gap-2 rounded-lg border border-red-800 bg-red-950/50 p-3 text-sm text-red-300"
+                    >
                         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                         <span>{globalError}</span>
                     </div>
                 )}
 
                 {results && (
-                    <div className="mt-4">
+                    <div className="mt-4" role="status" aria-live="polite">
                         <div className="mb-2 flex items-center gap-3 text-sm">
                             <span className="flex items-center gap-1 text-green-400">
                                 <CheckCircle2 className="h-4 w-4" /> {okCount} applied

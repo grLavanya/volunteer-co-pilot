@@ -37,8 +37,11 @@ export default function RoutePlanner({ zones }: RoutePlannerProps) {
 
       <form onSubmit={handleFindRoute} className="mt-4 space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">From</label>
+          <label htmlFor="route-from" className="mb-1 block text-xs font-medium text-slate-400">
+            From
+          </label>
           <select
+            id="route-from"
             value={fromId}
             onChange={(e) => setFromId(e.target.value)}
             className="w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -53,8 +56,11 @@ export default function RoutePlanner({ zones }: RoutePlannerProps) {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-400">To</label>
+          <label htmlFor="route-to" className="mb-1 block text-xs font-medium text-slate-400">
+            To
+          </label>
           <select
+            id="route-to"
             value={toId}
             onChange={(e) => setToId(e.target.value)}
             className="w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -78,7 +84,11 @@ export default function RoutePlanner({ zones }: RoutePlannerProps) {
       </form>
 
       {searched && (
-        <div className="mt-4 rounded-md border border-slate-700 bg-slate-900/50 p-3">
+        <div
+          className="mt-4 rounded-md border border-slate-700 bg-slate-900/50 p-3"
+          role="status"
+          aria-live="polite"
+        >
           {route && route.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5 text-sm">
               {route.map((name, i) => (

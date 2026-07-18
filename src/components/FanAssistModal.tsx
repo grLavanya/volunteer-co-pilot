@@ -92,6 +92,9 @@ export default function FanAssistModal({ open, onClose, volunteerId }: FanAssist
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fan-assist-title"
         className="w-full max-w-md rounded-t-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -100,7 +103,9 @@ export default function FanAssistModal({ open, onClose, volunteerId }: FanAssist
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-500/15">
               <Languages className="h-5 w-5 text-cyan-400" />
             </div>
-            <h2 className="text-base font-semibold text-slate-100">Assist a Fan</h2>
+            <h2 id="fan-assist-title" className="text-base font-semibold text-slate-100">
+              Assist a Fan
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -129,6 +134,7 @@ export default function FanAssistModal({ open, onClose, volunteerId }: FanAssist
               type="button"
               disabled
               title="Voice input coming soon"
+              aria-label="Voice input coming soon"
               className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-slate-500 cursor-not-allowed"
             >
               <Mic className="h-4 w-4" />
@@ -145,14 +151,18 @@ export default function FanAssistModal({ open, onClose, volunteerId }: FanAssist
         </div>
 
         {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300"
+          >
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {result && style && (
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-3" role="status" aria-live="polite">
             <div className="flex items-center gap-2">
               <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${style.badge}`}>
                 {style.label}
@@ -179,6 +189,7 @@ export default function FanAssistModal({ open, onClose, volunteerId }: FanAssist
                 <button
                   onClick={handleCopy}
                   title="Copy"
+                  aria-label="Copy suggested response"
                   className="absolute right-2.5 top-2.5 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
                 >
                   {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}

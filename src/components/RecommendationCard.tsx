@@ -64,14 +64,22 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
       </div>
 
       {loading && (
-        <div className="mt-6 flex flex-col items-center justify-center py-6 text-slate-400">
+        <div
+          className="mt-6 flex flex-col items-center justify-center py-6 text-slate-400"
+          role="status"
+          aria-live="polite"
+        >
           <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
           <span className="mt-2 text-xs text-slate-400 font-medium">Analyzing crowd distribution…</span>
         </div>
       )}
 
       {!loading && error && (
-        <div className="mt-4 flex gap-2 rounded-md border border-red-800 bg-red-950/20 p-3 text-xs text-red-300">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mt-4 flex gap-2 rounded-md border border-red-800 bg-red-950/20 p-3 text-xs text-red-300"
+        >
           <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
           <div>
             <span className="font-semibold block mb-0.5">Analysis failed</span>
@@ -81,7 +89,7 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
       )}
 
       {!loading && !error && hasRec && recommendation && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-4" role="status" aria-live="polite">
           {/* Main Action Block */}
           <div className={`rounded-md border p-3.5 ${cfg.bg}`}>
             <span className="text-[10px] font-bold tracking-wider uppercase opacity-75">
@@ -109,9 +117,9 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
                   {availableLangs.includes('en') && (
                     <button
                       onClick={() => setActiveLang('en')}
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                        activeLang === 'en' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                      }`}
+                      aria-pressed={activeLang === 'en'}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${activeLang === 'en' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                        }`}
                     >
                       EN
                     </button>
@@ -119,9 +127,9 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
                   {availableLangs.includes('es') && (
                     <button
                       onClick={() => setActiveLang('es')}
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                        activeLang === 'es' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                      }`}
+                      aria-pressed={activeLang === 'es'}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${activeLang === 'es' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                        }`}
                     >
                       ES
                     </button>
@@ -129,9 +137,9 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
                   {availableLangs.includes('fr') && (
                     <button
                       onClick={() => setActiveLang('fr')}
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                        activeLang === 'fr' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                      }`}
+                      aria-pressed={activeLang === 'fr'}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${activeLang === 'fr' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                        }`}
                     >
                       FR
                     </button>
@@ -145,6 +153,7 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
                   onClick={() => handleCopy(scripts[activeLang] || '')}
                   className="absolute top-2 right-2 rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300 transition-colors"
                   title="Copy script"
+                  aria-label="Copy suggested script"
                 >
                   {copied ? (
                     <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -170,4 +179,3 @@ export default function RecommendationCard({ zones }: RecommendationCardProps) {
     </div>
   );
 }
-
